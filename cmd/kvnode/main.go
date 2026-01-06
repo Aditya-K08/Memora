@@ -1,84 +1,63 @@
 package main
 
 import (
-    "bufio"
-    "fmt"
-    "os"
-    "strings"
-    "time"
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+	"time"
 
-    "memora/internal/storage"
-
+	"memora/internal/raft"
+	"memora/internal/storage"
 )
 
 func main() {
-    store, err := storage.Open("data.wal")
-    if err != nil {
-        panic(err)
-    }
-    defer store.Close()
+	raftNode := raft.NewRaftNode(1, []int{2, 3})
+	go raftNode.RunElectionTimer()
 
-    fmt.Println("KV Store started")
-    fmt.Println("Commands: PUT key value | GET key | DEL key | EXIT")
+	store, err := storage.Open("data.wal")
+	if err != nil {
+		panic(err)
+	}
+	defer store.Close()
 
-    scanner := bufio.NewScanner(os.Stdin)
-    for {
-        fmt.Print("> ")
-        if !scanner.Scan() {
-            break
-        }
+	fmt.Println("KV Store started")
+	fmt.Println("Commands: PUT key value | GET key | DEL key | EXIT")
 
-        input := strings.TrimSpace(scanner.Text())
-        parts := strings.SplitN(input, " ", 3)
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("> ")
+		if !scanner.Scan() {
+			break
+		}
 
-        if len(parts) == 0 {
-            continue
-        }
+		parts := strings.SplitN(scanner.Text(), " ", 3)
 
-        switch strings.ToUpper(parts[0]) {
-        case "PUT":
-            if len(parts) != 3 {
-                fmt.Println("Usage: PUT key value")
-                continue
-            }
-            err := store.Put(parts[1], []byte(parts[2]), 0)
-            if err != nil {
-                fmt.Println("ERR:", err)
-            } else {
-                fmt.Println("OK")
-            }
+		switch strings.ToUpper(parts[0]) {
+		case "PUT":
+			if len(parts) != 3 {
+				fmt.Println("Usage: PUT key value")
+				continue
+			}
+			store.Put(parts[1], []byte(parts[2]), 0)
+			fmt.Println("OK")
 
-        case "GET":
-            if len(parts) != 2 {
-                fmt.Println("Usage: GET key")
-                continue
-            }
-            val, ok := store.Get(parts[1])
-            if !ok {
-                fmt.Println("(nil)")
-            } else {
-                fmt.Println(string(val))
-            }
+		case "GET":
+			val, ok := store.Get(parts[1])
+			if !ok {
+				fmt.Println("(nil)")
+			} else {
+				fmt.Println(string(val))
+			}
 
-        case "DEL":
-            if len(parts) != 2 {
-                fmt.Println("Usage: DEL key")
-                continue
-            }
-            err := store.Delete(parts[1])
-            if err != nil {
-                fmt.Println("ERR:", err)
-            } else {
-                fmt.Println("OK")
-            }
+		case "DEL":
+			store.Delete(parts[1])
+			fmt.Println("OK")
 
-        case "EXIT":
-            fmt.Println("Shutting down")
-            time.Sleep(100 * time.Millisecond) // allow fsync
-            return
-
-        default:
-            fmt.Println("Unknown command")
-        }
-    }
+		case "EXIT":
+			fmt.Println("Shutting down")
+			time.Sleep(100 * time.Millisecond)
+			return
+		}
+	}
 }

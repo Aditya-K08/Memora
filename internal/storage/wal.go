@@ -6,7 +6,6 @@ import (
     "os"
     "sync"
 )
-
 const (
     opPut byte = 1
     opDel byte = 2
