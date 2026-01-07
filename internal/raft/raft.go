@@ -9,24 +9,81 @@ type RaftNode struct {
 	mu sync.Mutex
 
 	id    int
-	peers []int
-
 	state State
 
 	currentTerm uint64
 	votedFor    int
 
-	electionTimeout time.Duration
-	lastHeartbeat   time.Time
+	peers map[int]*RaftNode
+
+	lastHeartbeat     time.Time
+	electionTimeout   time.Duration
+	heartbeatInterval time.Duration
 }
 
-func NewRaftNode(id int, peers []int) *RaftNode {
+func NewRaftNode(id int) *RaftNode {
 	return &RaftNode{
-		id:              id,
-		peers:           peers,
-		state:           Follower,
-		votedFor:        -1,
-		lastHeartbeat:   time.Now(),
-		electionTimeout: 300 * time.Millisecond,
+		id:                id,
+		state:             Follower,
+		votedFor:          -1,
+		peers:             make(map[int]*RaftNode),
+		lastHeartbeat:     time.Now(),
+		electionTimeout:   300 * time.Millisecond,
+		heartbeatInterval: 100 * time.Millisecond,
+	}
+}
+
+func (r *RaftNode) AddPeer(p *RaftNode) {
+	r.peers[p.id] = p
+}
+
+func (r *RaftNode) IsLeader() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.state == Leader
+}
+
+func (r *RaftNode) RequestVote(args RequestVoteArgs) RequestVoteReply {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if args.Term < r.currentTerm {
+		return RequestVoteReply{Term: r.currentTerm, VoteGranted: false}
+	}
+
+	if args.Term > r.currentTerm {
+		r.currentTerm = args.Term
+		r.votedFor = -1
+		r.state = Follower
+	}
+
+	if r.votedFor == -1 || r.votedFor == args.CandidateID {
+		r.votedFor = args.CandidateID
+		r.lastHeartbeat = time.Now()
+		return RequestVoteReply{Term: r.currentTerm, VoteGranted: true}
+	}
+
+	return RequestVoteReply{Term: r.currentTerm, VoteGranted: false}
+}
+
+func (r *RaftNode) AppendEntries(args AppendEntriesArgs) AppendEntriesReply {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if args.Term < r.currentTerm {
+		return AppendEntriesReply{
+			Term:    r.currentTerm,
+			Success: false,
+		}
+	}
+
+	r.currentTerm = args.Term
+	r.state = Follower
+	r.votedFor = -1
+	r.lastHeartbeat = time.Now()
+
+	return AppendEntriesReply{
+		Term:    r.currentTerm,
+		Success: true,
 	}
 }
