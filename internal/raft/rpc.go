@@ -1,17 +1,19 @@
 package raft
 
-type RequestVoteArgs struct{
-	Term uint64
+type RequestVoteArgs struct {
+	Term        uint64
 	CandidateID int
 }
 
-type RequestVoteReply struct{
-	Term uint64
+type RequestVoteReply struct {
+	Term        uint64
 	VoteGranted bool
 }
+
 type AppendEntriesArgs struct {
 	Term     uint64
 	LeaderID int
+	Entries  []LogEntry
 }
 
 type AppendEntriesReply struct {

@@ -44,6 +44,13 @@ func main() {
 				fmt.Println("ERR: not leader")
 				continue
 			}
+
+			ok := n1.Replicate(parts[1], []byte(parts[2]))
+			if !ok {
+				fmt.Println("ERR: replication failed")
+				continue
+			}
+
 			store.Put(parts[1], []byte(parts[2]), 0)
 			fmt.Println("OK")
 

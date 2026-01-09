@@ -5,11 +5,21 @@ import (
 	"time"
 )
 
+type LogEntry struct {
+	Term  uint64
+	Key   string
+	Value []byte
+}
+
 type RaftNode struct {
 	mu sync.Mutex
 
 	id    int
 	state State
+
+	log         []LogEntry
+	commitIndex int
+	lastApplied int
 
 	currentTerm uint64
 	votedFor    int
@@ -26,6 +36,7 @@ func NewRaftNode(id int) *RaftNode {
 		id:                id,
 		state:             Follower,
 		votedFor:          -1,
+		log:               make([]LogEntry, 0),
 		peers:             make(map[int]*RaftNode),
 		lastHeartbeat:     time.Now(),
 		electionTimeout:   300 * time.Millisecond,
@@ -71,19 +82,50 @@ func (r *RaftNode) AppendEntries(args AppendEntriesArgs) AppendEntriesReply {
 	defer r.mu.Unlock()
 
 	if args.Term < r.currentTerm {
-		return AppendEntriesReply{
-			Term:    r.currentTerm,
-			Success: false,
-		}
+		return AppendEntriesReply{Term: r.currentTerm, Success: false}
 	}
 
 	r.currentTerm = args.Term
 	r.state = Follower
-	r.votedFor = -1
 	r.lastHeartbeat = time.Now()
 
-	return AppendEntriesReply{
-		Term:    r.currentTerm,
-		Success: true,
+	if len(args.Entries) > 0 {
+		r.log = append(r.log, args.Entries...)
 	}
+
+	return AppendEntriesReply{Term: r.currentTerm, Success: true}
+}
+
+func (r *RaftNode) Replicate(key string, val []byte) bool {
+	r.mu.Lock()
+	entry := LogEntry{
+		Term:  r.currentTerm,
+		Key:   key,
+		Value: val,
+	}
+	r.log = append(r.log, entry)
+	idx := len(r.log) - 1
+	r.mu.Unlock()
+
+	acks := 1
+	majority := (len(r.peers)+1)/2 + 1
+
+	for _, p := range r.peers {
+		reply := p.AppendEntries(AppendEntriesArgs{
+			Term:     r.currentTerm,
+			LeaderID: r.id,
+			Entries:  []LogEntry{entry},
+		})
+		if reply.Success {
+			acks++
+		}
+	}
+
+	if acks >= majority {
+		r.mu.Lock()
+		r.commitIndex = idx
+		r.mu.Unlock()
+		return true
+	}
+	return false
 }

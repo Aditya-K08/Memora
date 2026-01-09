@@ -52,8 +52,6 @@ func (r *RaftNode) startElection() {
 	}
 }
 
-
-
 func (r *RaftNode) runHeartbeatLoop() {
 	ticker := time.NewTicker(r.heartbeatInterval)
 	defer ticker.Stop()
@@ -67,8 +65,8 @@ func (r *RaftNode) runHeartbeatLoop() {
 		term := r.currentTerm
 		r.mu.Unlock()
 
-		for _, peer := range r.peers {
-			peer.AppendEntries(AppendEntriesArgs{
+		for _, p := range r.peers {
+			p.AppendEntries(AppendEntriesArgs{
 				Term:     term,
 				LeaderID: r.id,
 			})
