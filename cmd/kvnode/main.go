@@ -62,7 +62,7 @@ func main() {
 			}
 
 			store.Put(parts[1], []byte(parts[2]), 0)
-			fmt.Println("OK")
+			fmt.Println("OK")  
 
 		case "CRASH":
 			fmt.Println("💥 crashing leader node1")
