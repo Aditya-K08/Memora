@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package raft;
+option go_package = "memora/internal/raftpb";
+
+service Raft {
+  rpc RequestVote(RequestVoteArgs) returns (RequestVoteReply);
+  rpc AppendEntries(AppendEntriesArgs) returns (AppendEntriesReply);
+}
+
+message RequestVoteArgs {
+  uint64 term = 1;
+  int32 candidateId = 2;
+}
+
+message RequestVoteReply {
+  uint64 term = 1;
+  bool voteGranted = 2;
+}
+
+message AppendEntriesArgs {
+  uint64 term = 1;
+  int32 leaderId = 2;
+}
+
+message AppendEntriesReply {
+  uint64 term = 1;
+  bool success = 2;
+}

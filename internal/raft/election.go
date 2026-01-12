@@ -30,46 +30,26 @@ func (r *RaftNode) startElection() {
 	r.votedFor = r.id
 
 	votes := 1
-	total := len(r.peers) + 1
-	majority := total/2 + 1
-
-	for _, p := range r.peers {
-		reply := p.RequestVote(RequestVoteArgs{
-			Term:        r.currentTerm,
-			CandidateID: r.id,
-		})
-		if reply.VoteGranted {
+	for _, addr := range r.peerAddrs {
+		if r.sendVote(addr) {
 			votes++
 		}
 	}
 
-	if votes >= majority {
+	if votes >= (len(r.peerAddrs)+1)/2+1 {
 		r.state = Leader
-		r.lastHeartbeat = time.Now()
-		fmt.Printf("[RAFT] Leader %d elected (term %d, votes %d)\n",
-			r.id, r.currentTerm, votes)
-		go r.runHeartbeatLoop()
+		fmt.Println("LEADER:", r.id)
+		go r.heartbeatLoop()
 	}
 }
 
+
 func (r *RaftNode) runHeartbeatLoop() {
-	ticker := time.NewTicker(r.heartbeatInterval)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		r.mu.Lock()
-		if r.state != Leader {
-			r.mu.Unlock()
-			return
-		}
-		term := r.currentTerm
-		r.mu.Unlock()
-
-		for _, p := range r.peers {
-			p.AppendEntries(AppendEntriesArgs{
-				Term:     term,
-				LeaderID: r.id,
-			})
+	t := time.NewTicker(100 * time.Millisecond)
+	for range t.C {
+		if r.state != Leader { return }
+		for _, a := range r.peerAddrs {
+			r.sendHeartbeat(a)
 		}
 	}
 }
