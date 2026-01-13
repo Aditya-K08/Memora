@@ -5,45 +5,55 @@ import (
 	"net"
 
 	pb "memora/internal/raftpb"
+
 	"google.golang.org/grpc"
 )
 
-type Server struct {
+type GRPCServer struct {
 	pb.UnimplementedRaftServer
 	node *RaftNode
 }
 
-func (s *Server) RequestVote(ctx context.Context, a *pb.RequestVoteArgs)
-(*pb.RequestVoteReply, error) {
+func (s *GRPCServer) RequestVote(
+	ctx context.Context,
+	req *pb.RequestVoteArgs,
+) (*pb.RequestVoteReply, error) {
 
-	r := s.node.RequestVote(RequestVoteArgs{
-		Term: a.Term,
-		CandidateID: int(a.CandidateId),
+	reply := s.node.RequestVote(RequestVoteArgs{
+		Term:        req.Term,
+		CandidateID: int(req.CandidateId),
 	})
 
 	return &pb.RequestVoteReply{
-		Term: r.Term,
-		VoteGranted: r.VoteGranted,
+		Term:        reply.Term,
+		VoteGranted: reply.VoteGranted,
 	}, nil
 }
 
-func (s *Server) AppendEntries(ctx context.Context, a *pb.AppendEntriesArgs)
-(*pb.AppendEntriesReply, error) {
+func (s *GRPCServer) AppendEntries(
+	ctx context.Context,
+	req *pb.AppendEntriesArgs,
+) (*pb.AppendEntriesReply, error) {
 
-	r := s.node.AppendEntries(AppendEntriesArgs{
-		Term: a.Term,
-		LeaderID: int(a.LeaderId),
+	reply := s.node.AppendEntries(AppendEntriesArgs{
+		Term:     req.Term,
+		LeaderID: int(req.LeaderId),
 	})
 
 	return &pb.AppendEntriesReply{
-		Term: r.Term,
-		Success: r.Success,
+		Term:    reply.Term,
+		Success: reply.Success,
 	}, nil
 }
 
-func StartServer(port string, node *RaftNode) {
-	l, _ := net.Listen("tcp", port)
-	s := grpc.NewServer()
-	pb.RegisterRaftServer(s, &Server{node: node})
-	s.Serve(l)
+func StartGRPCServer(port string, node *RaftNode) error {
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		return err
+	}
+
+	server := grpc.NewServer()
+	pb.RegisterRaftServer(server, &GRPCServer{node: node})
+
+	return server.Serve(lis)
 }

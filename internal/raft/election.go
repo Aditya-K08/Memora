@@ -12,44 +12,62 @@ func (r *RaftNode) RunElectionTimer() {
 		time.Sleep(timeout)
 
 		r.mu.Lock()
+
+		// Leader does not start election
 		if r.state == Leader {
 			r.mu.Unlock()
 			continue
 		}
 
+		// Start election if no heartbeat
 		if time.Since(r.lastHeartbeat) >= timeout {
 			r.startElection()
 		}
+
 		r.mu.Unlock()
 	}
 }
 
 func (r *RaftNode) startElection() {
+	fmt.Println("Node", r.id, "starting election")
+
 	r.state = Candidate
 	r.currentTerm++
 	r.votedFor = r.id
 
 	votes := 1
+	majority := (len(r.peerAddrs)+1)/2 + 1
+
 	for _, addr := range r.peerAddrs {
 		if r.sendVote(addr) {
 			votes++
 		}
 	}
 
-	if votes >= (len(r.peerAddrs)+1)/2+1 {
+	fmt.Println("Node", r.id, "got", votes, "votes")
+
+	if votes >= majority {
 		r.state = Leader
 		fmt.Println("LEADER:", r.id)
-		go r.heartbeatLoop()
+		go r.runHeartbeatLoop()
 	}
 }
 
 
 func (r *RaftNode) runHeartbeatLoop() {
-	t := time.NewTicker(100 * time.Millisecond)
-	for range t.C {
-		if r.state != Leader { return }
-		for _, a := range r.peerAddrs {
-			r.sendHeartbeat(a)
+	ticker := time.NewTicker(r.heartbeatInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		r.mu.Lock()
+		if r.state != Leader {
+			r.mu.Unlock()
+			return
+		}
+		r.mu.Unlock()
+
+		for _, addr := range r.peerAddrs {
+			r.sendHeartbeat(addr)
 		}
 	}
 }
