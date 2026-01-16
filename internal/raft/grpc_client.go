@@ -20,7 +20,7 @@ func (r *RaftNode) sendVote(addr string) bool {
 
 	client, err := dial(addr)
 	if err != nil {
-		return false // peer unreachable
+		return false
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
