@@ -23,7 +23,15 @@ message AppendEntriesArgs {
   int32 leaderId = 2;
 }
 
-message AppendEntriesReply {
+message LogEntry {
   uint64 term = 1;
-  bool success = 2;
+  string key = 2;
+  bytes value = 3;
 }
+
+message AppendEntriesArgs {
+  uint64 term = 1;
+  int32 leaderId = 2;
+  repeated LogEntry entries = 3;
+}
+

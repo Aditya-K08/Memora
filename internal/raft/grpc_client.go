@@ -54,3 +54,8 @@ func (r *RaftNode) sendHeartbeat(addr string) {
 		LeaderId: int32(r.id),
 	})
 }
+
+
+
+
+

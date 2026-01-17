@@ -10,9 +10,12 @@ type RequestVoteReply struct {
 	VoteGranted bool
 }
 
+
+
 type AppendEntriesArgs struct {
 	Term     uint64
 	LeaderID int
+	Entries  []LogEntry
 }
 
 type AppendEntriesReply struct {
