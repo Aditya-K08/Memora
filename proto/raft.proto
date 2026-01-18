@@ -18,11 +18,6 @@ message RequestVoteReply {
   bool voteGranted = 2;
 }
 
-message AppendEntriesArgs {
-  uint64 term = 1;
-  int32 leaderId = 2;
-}
-
 message LogEntry {
   uint64 term = 1;
   string key = 2;
@@ -35,3 +30,7 @@ message AppendEntriesArgs {
   repeated LogEntry entries = 3;
 }
 
+message AppendEntriesReply {
+  uint64 term = 1;
+  bool success = 2;
+}
